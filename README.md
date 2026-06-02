@@ -1,1 +1,1 @@
-# zerotier-for-pfSense
+# Zerotier-for-pfSense

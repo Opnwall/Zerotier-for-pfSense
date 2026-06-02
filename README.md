@@ -214,7 +214,3 @@ Ensure communication between ZeroTier nodes is working properly.
 | pfSense Plus 26.03.1 | ✅ |
 
 ---
-
-## License
-
-MIT License

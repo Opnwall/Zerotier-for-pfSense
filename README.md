@@ -8,7 +8,7 @@ ZeroTier is a secure peer-to-peer (P2P) virtual networking platform that enables
 
 Since pfSense does not officially provide a ZeroTier package, this project integrates a complete ZeroTier management interface directly into the pfSense WebGUI. Users can manage the ZeroTier service, join networks, and monitor node status directly from the pfSense dashboard.
 
-![](image/config.png)
+![](images/config.png)
 
 Tested successfully on:
 

@@ -1,0 +1,287 @@
+#!/bin/sh
+
+set -eu
+
+VERSION="1.16.2"
+PKG_VERSION="${VERSION}"
+NAME="pfSense-pkg-zerotier"
+ORIGIN="pfSense-pkg/zerotier"
+ROOT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+BUILD_DIR="${TMPDIR:-/tmp}/zerotier-universal-pkg-$$"
+STAGE_DIR="$BUILD_DIR/stage"
+DIST_DIR="$ROOT_DIR/dist"
+OUT_PKG="$DIST_DIR/${NAME}-${VERSION}.pkg"
+
+cleanup() {
+    rm -rf "$BUILD_DIR"
+}
+trap cleanup EXIT INT TERM
+
+require_file() {
+    if [ ! -f "$1" ]; then
+        printf 'Missing required file: %s\n' "$1" >&2
+        exit 1
+    fi
+}
+
+require_file "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd15.pkg"
+require_file "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd16.pkg"
+require_file "$ROOT_DIR/install.sh"
+require_file "$ROOT_DIR/uninstall.sh"
+
+rm -rf "$BUILD_DIR"
+mkdir -p "$STAGE_DIR/usr/local/share/zerotier-pfsense/payload/freebsd15"
+mkdir -p "$STAGE_DIR/usr/local/share/zerotier-pfsense/payload/freebsd16"
+mkdir -p "$STAGE_DIR/usr/local/share/zerotier-pfsense"
+mkdir -p "$STAGE_DIR/usr/local/www"
+mkdir -p "$STAGE_DIR/usr/local/pkg"
+mkdir -p "$STAGE_DIR/usr/local/share/pfSense/menu"
+
+extract_payload() {
+    major="$1"
+    pkg_file="$2"
+    payload_dir="$STAGE_DIR/usr/local/share/zerotier-pfsense/payload/freebsd$major"
+    tmp="$BUILD_DIR/extract-freebsd$major"
+
+    mkdir -p "$tmp"
+    tar -xf "$pkg_file" -C "$tmp"
+    mkdir -p "$payload_dir/usr/local"
+
+    for path in \
+        usr/local/bin \
+        usr/local/etc/rc.d/zerotier \
+        usr/local/sbin \
+        usr/local/share/licenses/zerotier-${VERSION}
+    do
+        if [ -e "$tmp/$path" ] || [ -L "$tmp/$path" ]; then
+            mkdir -p "$payload_dir/$(dirname "$path")"
+            cp -R "$tmp/$path" "$payload_dir/$path"
+        fi
+    done
+}
+
+extract_payload 15 "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd15.pkg"
+extract_payload 16 "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd16.pkg"
+
+cp -R "$ROOT_DIR/www/." "$STAGE_DIR/usr/local/www/"
+cp -R "$ROOT_DIR/pkg/." "$STAGE_DIR/usr/local/pkg/"
+cp "$ROOT_DIR/menu/pfSense-VPN_ZeroTier.xml" "$STAGE_DIR/usr/local/share/pfSense/menu/pfSense-VPN_ZeroTier.xml"
+cp "$ROOT_DIR/install.sh" "$STAGE_DIR/usr/local/share/zerotier-pfsense/install.sh"
+cp "$ROOT_DIR/uninstall.sh" "$STAGE_DIR/usr/local/share/zerotier-pfsense/uninstall.sh"
+chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/install.sh"
+chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/uninstall.sh"
+cat > "$STAGE_DIR/usr/local/share/zerotier-pfsense/zerotier.sh" <<'EOF'
+#!/bin/sh
+
+# pfSense starts package rc scripts from /usr/local/etc/rc.d/*.sh.
+# The FreeBSD ZeroTier rc script is named "zerotier", so this wrapper bridges it.
+
+enabled=NO
+tmpfile="/tmp/zerotier_enable.$$"
+if /usr/sbin/sysrc -n zerotier_enable > "$tmpfile" 2>/dev/null; then
+    read enabled < "$tmpfile"
+fi
+rm -f "$tmpfile"
+
+case "$1" in
+    start|restart|onestart|onerestart)
+        case "$enabled" in
+            YES|yes|Yes|TRUE|true|True|1)
+                if /usr/sbin/service zerotier onestatus >/dev/null 2>&1; then
+                    exit 0
+                fi
+                /usr/sbin/service zerotier onestart
+                ;;
+        esac
+        ;;
+    stop|onestop)
+        /usr/sbin/service zerotier onestop
+        ;;
+    *)
+        /usr/sbin/service zerotier "$@"
+        ;;
+esac
+
+EOF
+chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/zerotier.sh"
+
+python3 - "$STAGE_DIR" "$VERSION" "$PKG_VERSION" "$NAME" "$ORIGIN" > "$STAGE_DIR/+MANIFEST" <<'PY'
+import hashlib
+import json
+import os
+import stat
+import sys
+
+stage, version, pkg_version, name, origin = sys.argv[1:]
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return "1$" + h.hexdigest()
+
+files = {}
+flatsize = 0
+for root, dirs, names in os.walk(stage):
+    dirs.sort()
+    names.sort()
+    for filename in names:
+        rel = os.path.relpath(os.path.join(root, filename), stage)
+        if rel in {"+MANIFEST", "+COMPACT_MANIFEST"}:
+            continue
+        full = os.path.join(stage, rel)
+        st = os.lstat(full)
+        path = "/" + rel
+        entry = {
+            "uname": "root",
+            "gname": "wheel",
+            "perm": format(stat.S_IMODE(st.st_mode), "04o"),
+            "fflags": 0,
+        }
+        if stat.S_ISLNK(st.st_mode):
+            entry["sum"] = "1$" + hashlib.sha256(os.readlink(full).encode()).hexdigest()
+            entry["symlink_target"] = os.readlink(full)
+        else:
+            entry["sum"] = sha256(full)
+            flatsize += st.st_size
+        files[path] = entry
+
+post_install = r'''#!/bin/sh
+set -e
+
+ROOT="/usr/local"
+BASE="$ROOT/share/zerotier-pfsense"
+
+log() {
+    message="$2"
+    echo "$message"
+}
+
+version_file="/tmp/zerotier_freebsd_version"
+if freebsd-version -u > "$version_file" 2>/dev/null; then
+    :
+elif freebsd-version > "$version_file" 2>/dev/null; then
+    :
+else
+    uname -r > "$version_file"
+fi
+
+read version < "$version_file"
+rm -f "$version_file"
+
+FREEBSD_MAJOR=""
+case "$version" in
+    15|15.*|15-*)
+        FREEBSD_MAJOR="15"
+        PAYLOAD="$BASE/payload/freebsd15/usr/local"
+        ;;
+    16|16.*|16-*)
+        FREEBSD_MAJOR="16"
+        PAYLOAD="$BASE/payload/freebsd16/usr/local"
+        ;;
+    *)
+        log "" "Unsupported FreeBSD version: $version. This package supports FreeBSD 15 and FreeBSD 16."
+        exit 1
+        ;;
+esac
+
+log "" "Detected FreeBSD $FREEBSD_MAJOR. Installing the matching ZeroTier binaries..."
+mkdir -p "$ROOT/bin" "$ROOT/sbin" "$ROOT/etc/rc.d" "$ROOT/share/licenses"
+cp -R "$PAYLOAD/bin/." "$ROOT/bin/"
+cp -R "$PAYLOAD/sbin/." "$ROOT/sbin/"
+cp "$PAYLOAD/etc/rc.d/zerotier" "$ROOT/etc/rc.d/zerotier"
+chmod 755 "$ROOT/etc/rc.d/zerotier"
+cp -R "$PAYLOAD/share/licenses/zerotier-1.16.2" "$ROOT/share/licenses/"
+cp "$BASE/zerotier.sh" "$ROOT/etc/rc.d/zerotier.sh"
+chmod 755 "$ROOT/etc/rc.d/zerotier.sh"
+
+sysrc -q zerotier_enable=YES >/dev/null 2>&1 || \
+    log "" "Unable to set zerotier_enable=YES. Please run 'sysrc zerotier_enable=YES' manually later."
+
+if ! grep -Eq '^[[:space:]]*net\.link\.tap\.up_on_open[[:space:]]*=' /etc/sysctl.conf 2>/dev/null; then
+    echo "" >> /etc/sysctl.conf
+    echo "# Required for ZeroTier TAP interfaces during pfSense startup." >> /etc/sysctl.conf
+    echo "net.link.tap.up_on_open=1" >> /etc/sysctl.conf
+fi
+sysctl net.link.tap.up_on_open=1 >/dev/null 2>&1 || \
+    log "" "The sysctl setting was written to /etc/sysctl.conf and will take effect after TAP support is loaded."
+
+log "" "ZeroTier for pfSense installation completed."
+log "" "Enable the service from VPN > ZeroTier VPN > Configuration, then join a network from the Networks page."
+exit 0
+'''
+
+pre_deinstall = r'''#!/bin/sh
+service zerotier stop >/dev/null 2>&1 || true
+pkill -f zerotier-one >/dev/null 2>&1 || true
+exit 0
+'''
+
+post_deinstall = r'''#!/bin/sh
+ROOT="/usr/local"
+rm -f "$ROOT/bin/zerotier-cli" "$ROOT/bin/zerotier-idtool" "$ROOT/sbin/zerotier-one"
+rm -f "$ROOT/etc/rc.d/zerotier" "$ROOT/etc/rc.d/zerotier.sh"
+rm -rf "$ROOT/share/licenses/zerotier-1.16.2"
+sysrc -q -x zerotier_enable >/dev/null 2>&1 || true
+exit 0
+'''
+
+manifest = {
+    "name": name,
+    "origin": origin,
+    "version": pkg_version,
+    "comment": "Universal ZeroTier package for pfSense FreeBSD 15 and 16",
+    "maintainer": "pfchina.org",
+    "www": "https://www.zerotier.com/",
+    "abi": "FreeBSD:*:amd64",
+    "arch": "freebsd:*:x86:64",
+    "prefix": "/usr/local",
+    "flatsize": flatsize,
+    "licenselogic": "single",
+    "licenses": ["MPL-2.0"],
+    "desc": "ZeroTier for pfSense with FreeBSD 15 and FreeBSD 16 payloads. The post-install script detects the host FreeBSD major version and installs the matching binaries.",
+    "categories": ["net", "pfSense"],
+    "annotations": {
+        "FreeBSD_major_supported": "15,16",
+        "built_by": "codex",
+        "zerotier_version": version,
+        "universal_payload": "true",
+    },
+    "files": files,
+    "scripts": {
+        "post-install": post_install,
+        "pre-deinstall": pre_deinstall,
+        "post-deinstall": post_deinstall,
+    },
+    "messages": [{
+        "type": "install",
+        "message": "ZeroTier for pfSense has been installed. Enable it from VPN > ZeroTier VPN> Configuration.",
+    }],
+}
+
+json.dump(manifest, sys.stdout, separators=(",", ":"))
+PY
+
+python3 - "$STAGE_DIR/+MANIFEST" > "$STAGE_DIR/+COMPACT_MANIFEST" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    manifest = json.load(f)
+
+for key in ("files", "directories", "scripts"):
+    manifest.pop(key, None)
+
+json.dump(manifest, sys.stdout, separators=(",", ":"))
+PY
+
+mkdir -p "$DIST_DIR"
+(
+    cd "$STAGE_DIR"
+    find usr \( -type f -o -type l \) -print | sort > "$BUILD_DIR/tarfiles"
+    # shellcheck disable=SC2046
+    tar -P --format=ustar -s ',^usr,/usr,' -cf - +COMPACT_MANIFEST +MANIFEST $(cat "$BUILD_DIR/tarfiles") | zstd -q -19 -f -o "$OUT_PKG"
+)
+
+printf 'Built %s\n' "$OUT_PKG"

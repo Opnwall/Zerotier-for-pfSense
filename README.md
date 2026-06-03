@@ -69,6 +69,20 @@ Save the configuration to start the service.
 
 ---
 
+## Optional local.conf Settings
+
+Navigate to:
+
+```text
+VPN -> ZeroTier VPN -> Configuration
+```
+
+Enter optional ZeroTier `local.conf` JSON in the `local.conf` field. Leave it empty to remove `local.conf`.
+
+The value must be a valid JSON document, otherwise ZeroTier may fail to start.
+
+---
+
 ## Join a ZeroTier Network
 
 Navigate to:

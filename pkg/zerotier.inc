@@ -156,6 +156,100 @@ function zerotier_home_path() {
     return dirname($token_path);
 }
 
+function zerotier_local_conf_path() {
+    $home_path = zerotier_home_path();
+    if (!empty($home_path)) {
+        return $home_path . '/local.conf';
+    }
+
+    $paths = array(
+        '/var/db/zerotier-one/local.conf',
+        '/var/lib/zerotier-one/local.conf'
+    );
+
+    foreach ($paths as $path) {
+        if (is_file($path)) {
+            return $path;
+        }
+    }
+
+    return '/var/db/zerotier-one/local.conf';
+}
+
+function zerotier_local_conf_config() {
+    global $config;
+
+    if (isset($config['installedpackages']['zerotier']['config'][0]['localconf'])) {
+        return (string)$config['installedpackages']['zerotier']['config'][0]['localconf'];
+    }
+
+    return zerotier_read_local_conf();
+}
+
+function zerotier_read_local_conf() {
+    $path = zerotier_local_conf_path();
+
+    if (!is_file($path)) {
+        return '';
+    }
+
+    $contents = @file_get_contents($path);
+    return ($contents === false) ? '' : (string)$contents;
+}
+
+function zerotier_validate_local_conf($contents, &$error = null) {
+    $error = null;
+    $contents = trim((string)$contents);
+
+    if ($contents === '') {
+        return true;
+    }
+
+    json_decode($contents);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $error = sprintf(zerotier_translate('local.conf must be valid JSON: %s'), json_last_error_msg());
+        return false;
+    }
+
+    return true;
+}
+
+function zerotier_write_local_conf($contents, &$error = null) {
+    $error = null;
+    $contents = trim((string)$contents);
+
+    if (!zerotier_validate_local_conf($contents, $error)) {
+        return false;
+    }
+
+    $path = zerotier_local_conf_path();
+    if ($contents === '') {
+        if (is_file($path) && !@unlink($path)) {
+            $error = sprintf(zerotier_translate('Unable to remove %s.'), $path);
+            return false;
+        }
+        return true;
+    }
+
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0700, true)) {
+        $error = sprintf(zerotier_translate('Unable to create %s.'), $dir);
+        return false;
+    }
+
+    if (@file_put_contents($path, $contents . "\n") === false) {
+        $error = sprintf(zerotier_translate('Unable to write %s.'), $path);
+        return false;
+    }
+
+    @chmod($path, 0600);
+    return true;
+}
+
+function zerotier_sync_local_conf(&$error = null) {
+    return zerotier_write_local_conf(zerotier_local_conf_config(), $error);
+}
+
 function zerotier_cli_exec($arguments, &$lines = null, &$return_var = null) {
     $output = array();
     $cmd = escapeshellcmd(zerotier_cli_path());
@@ -752,6 +846,7 @@ function zerotier_network_from_ifconfig($ifname) {
 function zerotier_sync() {
     $enabled = zerotier_config_enabled();
     zerotier_set_boot_enabled($enabled);
+    zerotier_sync_local_conf();
 
     if (!$enabled) {
         zerotier_stop();
@@ -775,6 +870,7 @@ function zerotier_install() {
     }
 
     zerotier_set_boot_enabled(zerotier_config_enabled());
+    zerotier_sync_local_conf();
     write_config("[zerotier] Package installed.");
 }
 
@@ -796,6 +892,7 @@ function zerotier_kill() {
 function zerotier_start() {
     if (zerotier_config_enabled() && !zerotier_is_running()) {
         zerotier_set_boot_enabled(true);
+        zerotier_sync_local_conf();
         zerotier_start_service();
     }
 }

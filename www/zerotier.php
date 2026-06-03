@@ -72,7 +72,7 @@ function zerotier_status_fallback() {
 }
 
 function zerotier_run_service_command($action) {
-    if (!in_array($action, array('start', 'stop'), true)) {
+    if (!in_array($action, array('start', 'stop', 'restart'), true)) {
         return false;
     }
 
@@ -94,23 +94,52 @@ if (!isset($config['installedpackages']['zerotier']['config']) || !is_array($con
     $config['installedpackages']['zerotier']['config'] = array();
 }
 
+$input_errors = array();
+$local_conf_requested = null;
+
 if (isset($_POST['save'])) {
     $enable_requested = isset($_POST['enable']);
+    $local_conf_requested = isset($_POST['localconf']) && is_string($_POST['localconf'])
+        ? trim(str_replace("\r\n", "\n", $_POST['localconf']))
+        : '';
+    $local_conf_previous = isset($config['installedpackages']['zerotier']['config'][0]['localconf'])
+        ? (string)$config['installedpackages']['zerotier']['config'][0]['localconf']
+        : '';
+    $local_conf_error = null;
 
-    if ($enable_requested) {
-        $config['installedpackages']['zerotier']['config'][0]['enable'] = 'yes';
+    if (!zerotier_validate_local_conf($local_conf_requested, $local_conf_error)) {
+        $input_errors[] = $local_conf_error;
     }
-    else {
-        $config['installedpackages']['zerotier']['config'][0]['enable'] = null;
+
+    if (empty($input_errors)) {
+        if ($enable_requested) {
+            $config['installedpackages']['zerotier']['config'][0]['enable'] = 'yes';
+        }
+        else {
+            $config['installedpackages']['zerotier']['config'][0]['enable'] = null;
+        }
+
+        $config['installedpackages']['zerotier']['config'][0]['localconf'] = $local_conf_requested;
+
+        if (!zerotier_write_local_conf($local_conf_requested, $local_conf_error)) {
+            $input_errors[] = $local_conf_error;
+        }
     }
 
+    if (empty($input_errors)) {
+        $service_running_before_save = zerotier_is_running();
+        $service_action = $enable_requested ? 'start' : 'stop';
+        if ($enable_requested && $service_running_before_save && $local_conf_previous !== $local_conf_requested) {
+            $service_action = 'restart';
+        }
 
-    write_config(zerotier_translate("Update enable Zerotier."));
-    zerotier_set_boot_enabled($enable_requested);
-    zerotier_run_service_command($enable_requested ? 'start' : 'stop');
+        write_config(zerotier_translate("Update Zerotier configuration."));
+        zerotier_set_boot_enabled($enable_requested);
+        zerotier_run_service_command($service_action);
 
-    header("Location: zerotier.php");
-    exit;
+        header("Location: zerotier.php");
+        exit;
+    }
 }
 
 $enable_mode = isset($config['installedpackages']['zerotier']['config'][0]['enable'])
@@ -147,6 +176,12 @@ if ($enable_mode != 'yes' || !$zerotier_running) {
 
 
 $enable['mode'] = $enable_mode;
+$local_conf_value = isset($config['installedpackages']['zerotier']['config'][0]['localconf'])
+    ? (string)$config['installedpackages']['zerotier']['config'][0]['localconf']
+    : zerotier_read_local_conf();
+if ($local_conf_requested !== null) {
+    $local_conf_value = $local_conf_requested;
+}
 
 $status = null;
 $status_error = null;
@@ -180,6 +215,9 @@ if ($enable_mode == 'yes' && $zerotier_running) {
 </div>
 
 <?php
+if (!empty($input_errors)) {
+    print_input_errors($input_errors);
+}
 
 $form = new Form();
 $section = new Form_Section(zerotier_translate('Enable Zerotier'));
@@ -190,6 +228,15 @@ $section->addInput(new Form_Checkbox(
                 $enable['mode']
             ));
 $form->add($section);
+
+$section = new Form_Section(zerotier_translate('local.conf settings'));
+$section->addInput(new Form_Textarea(
+                'localconf',
+                zerotier_translate('local.conf'),
+                $local_conf_value
+            ))->setHelp(zerotier_translate('Optional ZeroTier local.conf JSON. Leave empty to remove local.conf.'));
+$form->add($section);
+
 print($form);
 include("foot.inc");
 ?>

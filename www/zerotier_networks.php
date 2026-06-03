@@ -173,11 +173,11 @@ if (isset($_POST['save']) && isset($_POST['NetworkAction']) && $_POST['NetworkAc
             $savemsg = zerotier_translate("No changes were made.");
         } else {
             $operation_error = null;
-            zerotier_leave_network($network_original, $operation_error);
+            $out = zerotier_join_network($network_id, $operation_error);
             if ($operation_error !== null) {
                 $input_errors[] = $operation_error;
             } else {
-                $out = zerotier_join_network($network_id, $operation_error);
+                zerotier_leave_network($network_original, $operation_error);
                 if ($operation_error !== null) {
                     $input_errors[] = $operation_error;
                 } elseif (!empty($out)) {

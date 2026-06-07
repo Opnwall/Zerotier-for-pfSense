@@ -220,11 +220,4 @@ Ensure communication between ZeroTier nodes is working properly.
 
 ---
 
-## Compatibility
-
-| Platform | Status |
-|----------|--------|
-| pfSense CE 2.8.1 | ✅ |
-| pfSense Plus 26.03.1 | ✅ |
-
 ---

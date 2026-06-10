@@ -29,6 +29,22 @@ Tested successfully on:
 
 ---
 
+## Project Layout
+
+Installed pfSense files are stored under the same paths they use on the firewall:
+
+```text
+src/usr/local/www/                         WebGUI PHP pages
+src/usr/local/bin/                         FreeBSD ZeroTier package payload inputs
+src/usr/local/pkg/                         pfSense package XML and PHP include
+src/usr/local/etc/rc.d/zerotier.sh         pfSense package service wrapper
+src/usr/local/share/pfSense/menu/          WebGUI menu entry
+```
+
+Build inputs and standalone helper scripts that are not stored in pfSense's live paths, such as `install.sh`, `uninstall.sh`, `images/`, and `build.sh`, remain in the project root.
+
+---
+
 ## Installation
 
 Upload the package to pfSense:
@@ -217,3 +233,18 @@ Ensure communication between ZeroTier nodes is working properly.
 
 - Do NOT manually assign the ZeroTier interface under `Interfaces -> Assignments`, otherwise network settings may be reset after reboot.
 - The package already includes startup scripts. Do NOT add startup commands using Shellcmd, otherwise pfSense may freeze during boot and fail to start correctly.
+
+---
+
+## Compatibility
+
+| Platform | Status |
+|----------|--------|
+| pfSense CE 2.8.1 | ✅ |
+| pfSense Plus 26.03.1 | ✅ |
+
+---
+
+## License
+
+MIT License

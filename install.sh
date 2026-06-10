@@ -16,6 +16,8 @@ WWW_DIR="$ROOT/www"
 PKG_DIR="$ROOT/pkg"
 MENU_DIR="$ROOT/share/pfSense/menu"
 SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+PROJECT_ROOT="$SCRIPT_DIR"
+SRC_ROOT="$PROJECT_ROOT/src/usr/local"
 
 log() {
     color="$1"
@@ -47,10 +49,10 @@ FREEBSD_MAJOR=$(detect_freebsd_major_version) || {
 }
 log "$GREEN" "Detected FreeBSD ${FREEBSD_MAJOR}."
 
-set -- "$SCRIPT_DIR"/bin/zerotier-*-freebsd"${FREEBSD_MAJOR}".pkg
+set -- "$SRC_ROOT"/bin/zerotier-*-freebsd"${FREEBSD_MAJOR}".pkg
 if [ ! -f "$1" ]; then
     log "$RED" "No ZeroTier package was found for FreeBSD ${FREEBSD_MAJOR}."
-    log "$YELLOW" "Please make sure bin/ contains zerotier-*-freebsd${FREEBSD_MAJOR}.pkg."
+        log "$YELLOW" "Please make sure src/usr/local/bin/ contains zerotier-*-freebsd${FREEBSD_MAJOR}.pkg."
     exit 1
 fi
 ZEROTIER_PKG="$1"
@@ -62,41 +64,15 @@ printf '\n'
 log "$YELLOW" "Copying files..."
 
 log "$YELLOW" "Installing menu entry..."
-cp -f "$SCRIPT_DIR"/www/* "$WWW_DIR/"
-cp -f "$SCRIPT_DIR"/pkg/* "$PKG_DIR/"
-cp -R "$SCRIPT_DIR"/menu/* "$MENU_DIR/"
+mkdir -p "$WWW_DIR" "$PKG_DIR" "$MENU_DIR" "$ROOT/etc/rc.d"
+cp -f "$SRC_ROOT"/www/* "$WWW_DIR/"
+cp -f "$SRC_ROOT"/pkg/* "$PKG_DIR/"
+cp -R "$SRC_ROOT"/share/pfSense/menu/* "$MENU_DIR/"
 
-log "$YELLOW" "Enabling ZeroTier in rc.conf..."
-sysrc -q zerotier_enable=YES >/dev/null 2>&1 || \
-    log "$YELLOW" "Unable to set zerotier_enable=YES. Please run 'sysrc zerotier_enable=YES' manually later."
-cat > "$ROOT/etc/rc.d/zerotier.sh" <<'EOF'
-#!/bin/sh
-
-# pfSense starts package rc scripts from /usr/local/etc/rc.d/*.sh.
-# The FreeBSD ZeroTier rc script is named "zerotier", so this wrapper bridges it.
-
-enabled=$(/usr/sbin/sysrc -n zerotier_enable 2>/dev/null || echo NO)
-
-case "$1" in
-    start|restart|onestart|onerestart)
-        case "$enabled" in
-            YES|yes|Yes|TRUE|true|True|1)
-                if /usr/sbin/service zerotier onestatus >/dev/null 2>&1; then
-                    exit 0
-                fi
-                /usr/sbin/service zerotier onestart
-                ;;
-        esac
-        ;;
-    stop|onestop)
-        /usr/sbin/service zerotier onestop
-        ;;
-    *)
-        /usr/sbin/service zerotier "$@"
-        ;;
-esac
-
-EOF
+log "$YELLOW" "Leaving ZeroTier disabled until it is enabled in the WebGUI..."
+sysrc -q zerotier_enable=NO >/dev/null 2>&1 || \
+    log "$YELLOW" "Unable to set zerotier_enable=NO. Please enable ZeroTier from the WebGUI after installation."
+cp -f "$SRC_ROOT/etc/rc.d/zerotier.sh" "$ROOT/etc/rc.d/zerotier.sh"
 chmod 755 "$ROOT/etc/rc.d/zerotier.sh"
 printf '\n'
 

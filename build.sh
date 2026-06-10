@@ -7,6 +7,7 @@ PKG_VERSION="${VERSION}"
 NAME="pfSense-pkg-zerotier"
 ORIGIN="pfSense-pkg/zerotier"
 ROOT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+SRC_DIR="$ROOT_DIR/src"
 BUILD_DIR="${TMPDIR:-/tmp}/zerotier-universal-pkg-$$"
 STAGE_DIR="$BUILD_DIR/stage"
 DIST_DIR="$ROOT_DIR/dist"
@@ -24,10 +25,11 @@ require_file() {
     fi
 }
 
-require_file "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd15.pkg"
-require_file "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd16.pkg"
+require_file "$SRC_DIR/usr/local/bin/zerotier-${VERSION}-freebsd15.pkg"
+require_file "$SRC_DIR/usr/local/bin/zerotier-${VERSION}-freebsd16.pkg"
 require_file "$ROOT_DIR/install.sh"
 require_file "$ROOT_DIR/uninstall.sh"
+require_file "$SRC_DIR/usr/local/etc/rc.d/zerotier.sh"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$STAGE_DIR/usr/local/share/zerotier-pfsense/payload/freebsd15"
@@ -36,6 +38,7 @@ mkdir -p "$STAGE_DIR/usr/local/share/zerotier-pfsense"
 mkdir -p "$STAGE_DIR/usr/local/www"
 mkdir -p "$STAGE_DIR/usr/local/pkg"
 mkdir -p "$STAGE_DIR/usr/local/share/pfSense/menu"
+mkdir -p "$STAGE_DIR/usr/local/etc/rc.d"
 
 extract_payload() {
     major="$1"
@@ -60,49 +63,19 @@ extract_payload() {
     done
 }
 
-extract_payload 15 "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd15.pkg"
-extract_payload 16 "$ROOT_DIR/bin/zerotier-${VERSION}-freebsd16.pkg"
+extract_payload 15 "$SRC_DIR/usr/local/bin/zerotier-${VERSION}-freebsd15.pkg"
+extract_payload 16 "$SRC_DIR/usr/local/bin/zerotier-${VERSION}-freebsd16.pkg"
 
-cp -R "$ROOT_DIR/www/." "$STAGE_DIR/usr/local/www/"
-cp -R "$ROOT_DIR/pkg/." "$STAGE_DIR/usr/local/pkg/"
-cp "$ROOT_DIR/menu/pfSense-VPN_ZeroTier.xml" "$STAGE_DIR/usr/local/share/pfSense/menu/pfSense-VPN_ZeroTier.xml"
+cp -R "$SRC_DIR/usr/local/www/." "$STAGE_DIR/usr/local/www/"
+cp -R "$SRC_DIR/usr/local/pkg/." "$STAGE_DIR/usr/local/pkg/"
+cp "$SRC_DIR/usr/local/share/pfSense/menu/pfSense-VPN_ZeroTier.xml" "$STAGE_DIR/usr/local/share/pfSense/menu/pfSense-VPN_ZeroTier.xml"
 cp "$ROOT_DIR/install.sh" "$STAGE_DIR/usr/local/share/zerotier-pfsense/install.sh"
 cp "$ROOT_DIR/uninstall.sh" "$STAGE_DIR/usr/local/share/zerotier-pfsense/uninstall.sh"
 chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/install.sh"
 chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/uninstall.sh"
-cat > "$STAGE_DIR/usr/local/share/zerotier-pfsense/zerotier.sh" <<'EOF'
-#!/bin/sh
-
-# pfSense starts package rc scripts from /usr/local/etc/rc.d/*.sh.
-# The FreeBSD ZeroTier rc script is named "zerotier", so this wrapper bridges it.
-
-enabled=NO
-tmpfile="/tmp/zerotier_enable.$$"
-if /usr/sbin/sysrc -n zerotier_enable > "$tmpfile" 2>/dev/null; then
-    read enabled < "$tmpfile"
-fi
-rm -f "$tmpfile"
-
-case "$1" in
-    start|restart|onestart|onerestart)
-        case "$enabled" in
-            YES|yes|Yes|TRUE|true|True|1)
-                if /usr/sbin/service zerotier onestatus >/dev/null 2>&1; then
-                    exit 0
-                fi
-                /usr/sbin/service zerotier onestart
-                ;;
-        esac
-        ;;
-    stop|onestop)
-        /usr/sbin/service zerotier onestop
-        ;;
-    *)
-        /usr/sbin/service zerotier "$@"
-        ;;
-esac
-
-EOF
+cp "$SRC_DIR/usr/local/etc/rc.d/zerotier.sh" "$STAGE_DIR/usr/local/etc/rc.d/zerotier.sh"
+cp "$SRC_DIR/usr/local/etc/rc.d/zerotier.sh" "$STAGE_DIR/usr/local/share/zerotier-pfsense/zerotier.sh"
+chmod 755 "$STAGE_DIR/usr/local/etc/rc.d/zerotier.sh"
 chmod 755 "$STAGE_DIR/usr/local/share/zerotier-pfsense/zerotier.sh"
 
 python3 - "$STAGE_DIR" "$VERSION" "$PKG_VERSION" "$NAME" "$ORIGIN" > "$STAGE_DIR/+MANIFEST" <<'PY'
@@ -196,8 +169,8 @@ cp -R "$PAYLOAD/share/licenses/zerotier-1.16.2" "$ROOT/share/licenses/"
 cp "$BASE/zerotier.sh" "$ROOT/etc/rc.d/zerotier.sh"
 chmod 755 "$ROOT/etc/rc.d/zerotier.sh"
 
-sysrc -q zerotier_enable=YES >/dev/null 2>&1 || \
-    log "" "Unable to set zerotier_enable=YES. Please run 'sysrc zerotier_enable=YES' manually later."
+sysrc -q zerotier_enable=NO >/dev/null 2>&1 || \
+    log "" "Unable to set zerotier_enable=NO. Please enable ZeroTier from the WebGUI after installation."
 
 if ! grep -Eq '^[[:space:]]*net\.link\.tap\.up_on_open[[:space:]]*=' /etc/sysctl.conf 2>/dev/null; then
     echo "" >> /etc/sysctl.conf
@@ -256,7 +229,7 @@ manifest = {
     },
     "messages": [{
         "type": "install",
-        "message": "ZeroTier for pfSense has been installed. Enable it from VPN > ZeroTier VPN> Configuration.",
+        "message": "ZeroTier for pfSense has been installed. Enable it from VPN > ZeroTier VPN > Configuration.",
     }],
 }
 

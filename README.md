@@ -37,8 +37,6 @@ src/usr/local/etc/rc.d/zerotier.sh         pfSense package service wrapper
 src/usr/local/share/pfSense/menu/          WebGUI menu entry
 ```
 
-Build inputs and standalone helper scripts that are not stored in pfSense's live paths, such as `install.sh`, `uninstall.sh`, `images/`, and `build.sh`, remain in the project root.
-
 ---
 ## Installation
 Upload the package to pfSense:
@@ -91,6 +89,7 @@ VPN -> ZeroTier VPN -> Configuration
 Enter optional ZeroTier `local.conf` JSON in the `local.conf` field. Leave it empty to remove `local.conf`.
 
 The value must be a valid JSON document, otherwise ZeroTier may fail to start.
+
 ---
 ## Join a ZeroTier Network
 
@@ -112,6 +111,7 @@ Enter:
 Network ID
 ```
 Save the configuration.
+
 ---
 ## Node Authorization
 

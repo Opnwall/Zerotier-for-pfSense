@@ -14,11 +14,8 @@ Tested successfully on:
 
 - pfSense CE 2.8.1 (FreeBSD 15)
 - pfSense Plus 26.03.1 (FreeBSD 16)
-
 ---
-
 ## Features
-
 - WebGUI management
 - Node status monitoring
 - Route advertisement support
@@ -28,7 +25,6 @@ Tested successfully on:
 - Supports both pfSense CE and Plus
 
 ---
-
 ## Project Layout
 
 Installed pfSense files are stored under the same paths they use on the firewall:
@@ -44,9 +40,7 @@ src/usr/local/share/pfSense/menu/          WebGUI menu entry
 Build inputs and standalone helper scripts that are not stored in pfSense's live paths, such as `install.sh`, `uninstall.sh`, `images/`, and `build.sh`, remain in the project root.
 
 ---
-
 ## Installation
-
 Upload the package to pfSense:
 
 ```shell
@@ -64,9 +58,12 @@ After installation, the following menu will appear in WebGUI:
 ```text
 VPN -> ZeroTier VPN
 ```
-
 ---
-
+## Uninstall
+```shell
+pkg delete pfSense-pkg-zerotier
+```
+---
 ## Enable ZeroTier
 
 Navigate to:
@@ -80,11 +77,9 @@ Enable:
 ```text
 Enable Zerotier Client
 ```
-
 Save the configuration to start the service.
 
 ---
-
 ## Optional local.conf Settings
 
 Navigate to:
@@ -96,9 +91,7 @@ VPN -> ZeroTier VPN -> Configuration
 Enter optional ZeroTier `local.conf` JSON in the `local.conf` field. Leave it empty to remove `local.conf`.
 
 The value must be a valid JSON document, otherwise ZeroTier may fail to start.
-
 ---
-
 ## Join a ZeroTier Network
 
 Navigate to:
@@ -118,11 +111,8 @@ Enter:
 ```text
 Network ID
 ```
-
 Save the configuration.
-
 ---
-
 ## Node Authorization
 
 After joining a network for the first time, the node will remain unauthorized by default.
@@ -149,20 +139,15 @@ Once authorized, the ZeroTier network status in pfSense will display:
 ```text
 OK
 ```
-
 ---
-
 ## Route Management
-
 To allow ZeroTier clients to access networks behind pfSense, add Managed Routes in ZeroTier Central.
 
 Example:
-
 ```text
 Destination: 192.168.1.0/24
 Via: 10.147.20.2
 ```
-
 Where:
 
 - `Destination` is the pfSense LAN subnet
@@ -171,9 +156,7 @@ Where:
 After configuration, remote ZeroTier clients can access LAN resources behind pfSense.
 
 ---
-
 ## Firewall Rules
-
 To allow LAN clients to access remote ZeroTier networks, appropriate firewall rules must be added.
 
 Example:
@@ -188,9 +171,7 @@ Action: Pass
 You may also restrict access to specific ZeroTier subnets if needed.
 
 ---
-
 ## View Peer Status
-
 Navigate to:
 
 ```text
@@ -206,30 +187,23 @@ Available information includes:
 - Node details
 
 ---
-
 ## Uninstall
-
 Execute:
 
 ```shell
 pkg remove pfSense-pkg-zerotier
 ```
-
 ---
 
 ## Connectivity Testing
-
 After configuration, it is recommended to test connectivity using:
 
 ```shell
 ping
 ```
-
 Ensure communication between ZeroTier nodes is working properly.
 
 ---
-
 ## Notes
-
 - Do NOT manually assign the ZeroTier interface under `Interfaces -> Assignments`, otherwise network settings may be reset after reboot.
 - The package already includes startup scripts. Do NOT add startup commands using Shellcmd, otherwise pfSense may freeze during boot and fail to start correctly.

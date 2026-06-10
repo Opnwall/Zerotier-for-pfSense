@@ -207,3 +207,7 @@ Ensure communication between ZeroTier nodes is working properly.
 ## Notes
 - Do NOT manually assign the ZeroTier interface under `Interfaces -> Assignments`, otherwise network settings may be reset after reboot.
 - The package already includes startup scripts. Do NOT add startup commands using Shellcmd, otherwise pfSense may freeze during boot and fail to start correctly.
+
+## Disclaimer
+[!CAUTION]
+This is an unofficial plugin and is not supported by Netgate or the pfSense team. Users assume all risks and consequences.

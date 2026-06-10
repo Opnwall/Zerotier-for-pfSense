@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<packagegui>
-	<menu>
-		<name>ZeroTier VPN</name>
-		<section>VPN</section>
-		<url>/zerotier.php</url>
-	</menu>
-</packagegui>

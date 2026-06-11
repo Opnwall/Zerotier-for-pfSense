@@ -5,6 +5,10 @@
 
 # ZeroTier for pfSense
 
+![pfSense CE](https://img.shields.io/badge/pfSense_CE-2.8.1-blue)
+![pfSense Plus](https://img.shields.io/badge/pfSense_Plus-26.03.1-green)
+![License](https://img.shields.io/badge/License-GPLv3-green)
+
 一个集成到 pfSense WebGUI 的 ZeroTier 管理插件。
 
 ## 简介

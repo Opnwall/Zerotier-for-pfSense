@@ -3,7 +3,7 @@
     <div align="center"> 中文 | <a href="README.en-US.md">English</div>
 </div>
 
-# pfSense ZeroTier 插件
+# ZeroTier for pfSense
 
 一个集成到 pfSense WebGUI 的 ZeroTier 管理插件。
 
@@ -253,4 +253,4 @@ ping
 
 ## 免责声明
 
-> ⚠️ 本插件为非官方插件，不受 Netgate 或 pfSense 官方团队支持。使用本插件所产生的任何风险和后果均由用户自行承担。
+> ⚠️ 本插件为非官方插件，无 Netgate 或 pfSense 官方团队支持。使用本插件所产生的任何风险和后果均由用户自行承担。

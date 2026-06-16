@@ -3,7 +3,7 @@
 
 ![pfSense CE](https://img.shields.io/badge/pfSense_CE-2.8.1-blue)
 ![pfSense Plus](https://img.shields.io/badge/pfSense_Plus-26.03.1-green)
-![License](https://img.shields.io/badge/License-GPLv3-green)
+![Architecture](https://img.shields.io/badge/Architecture-amd64-orange)
 
 ZeroTier VPN integration for pfSense with native WebGUI support.
 

@@ -9,8 +9,6 @@
 ![pfSense Plus](https://img.shields.io/badge/pfSense_Plus-green)
 ![License](https://img.shields.io/badge/License-GPLv3-green)
 
-一个集成到 pfSense WebGUI 的 ZeroTier 管理插件。
-
 ## 简介
 
 ZeroTier 是一个安全的点对点（P2P）虚拟网络平台，可让设备在局域网（LAN）和广域网（WAN）环境中无缝通信，并提供类似企业级 SDN（软件定义网络）的能力。

@@ -7,7 +7,7 @@
 
 ![pfSense CE](https://img.shields.io/badge/pfSense_CE-blue)
 ![pfSense Plus](https://img.shields.io/badge/pfSense_Plus-green)
-![License](https://img.shields.io/badge/License-GPLv3-green)
+![Architecture](https://img.shields.io/badge/Architecture-amd64-orange)
 
 ## 简介
 

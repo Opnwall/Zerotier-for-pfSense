@@ -19,7 +19,7 @@ Tested successfully on:
 
 - pfSense CE 2.8.1 (FreeBSD 15)
 - pfSense Plus 26.03.1 (FreeBSD 16)
----
+
 ## Features
 - WebGUI management
 - Node status monitoring
@@ -29,7 +29,6 @@ Tested successfully on:
 - ZeroTier service management
 - Supports both pfSense CE and Plus
 
----
 ## Project Layout
 
 Installed pfSense files are stored under the same paths they use on the firewall:
@@ -42,7 +41,6 @@ src/usr/local/etc/rc.d/zerotier.sh         pfSense package service wrapper
 src/usr/local/share/pfSense/menu/          WebGUI menu entry
 ```
 
----
 ## Installation
 Upload the package to pfSense:
 
@@ -61,12 +59,10 @@ After installation, the following menu will appear in WebGUI:
 ```text
 VPN -> ZeroTier VPN
 ```
----
 ## Uninstall
 ```shell
 pkg delete pfSense-pkg-zerotier
 ```
----
 ## Enable ZeroTier
 
 Navigate to:
@@ -82,7 +78,6 @@ Enable Zerotier Client
 ```
 Save the configuration to start the service.
 
----
 ## Optional local.conf Settings
 
 Navigate to:
@@ -95,7 +90,6 @@ Enter optional ZeroTier `local.conf` JSON in the `local.conf` field. Leave it em
 
 The value must be a valid JSON document, otherwise ZeroTier may fail to start.
 
----
 ## Join a ZeroTier Network
 
 Navigate to:
@@ -117,7 +111,6 @@ Network ID
 ```
 Save the configuration.
 
----
 ## Node Authorization
 
 After joining a network for the first time, the node will remain unauthorized by default.
@@ -144,7 +137,6 @@ Once authorized, the ZeroTier network status in pfSense will display:
 ```text
 OK
 ```
----
 ## Route Management
 To allow ZeroTier clients to access networks behind pfSense, add Managed Routes in ZeroTier Central.
 
@@ -160,7 +152,6 @@ Where:
 
 After configuration, remote ZeroTier clients can access LAN resources behind pfSense.
 
----
 ## Firewall Rules
 To allow LAN clients to access remote ZeroTier networks, appropriate firewall rules must be added.
 
@@ -172,10 +163,8 @@ Source: LAN net
 Destination: any
 Action: Pass
 ```
-
 You may also restrict access to specific ZeroTier subnets if needed.
 
----
 ## View Peer Status
 Navigate to:
 
@@ -191,14 +180,12 @@ Available information includes:
 - Routing information
 - Node details
 
----
 ## Uninstall
 Execute:
 
 ```shell
 pkg remove pfSense-pkg-zerotier
 ```
----
 
 ## Connectivity Testing
 After configuration, it is recommended to test connectivity using:
@@ -208,11 +195,10 @@ ping
 ```
 Ensure communication between ZeroTier nodes is working properly.
 
----
 ## Notes
 - Do NOT manually assign the ZeroTier interface under `Interfaces -> Assignments`, otherwise network settings may be reset after reboot.
 - The package already includes startup scripts. Do NOT add startup commands using Shellcmd, otherwise pfSense may freeze during boot and fail to start correctly.
 
 ## Disclaimer
-> [!CAUTION]
-> This is an unofficial plugin and is not supported by Netgate or the pfSense team. Users assume all risks and consequences.
+
+This is an unofficial community project and is not affiliated with, endorsed by, or supported by the pfSense team. Please review the source code carefully before deployment and use it at your own risk.

@@ -1,6 +1,7 @@
 
 <div align="center">
-    <div align="center"> 中文 | <a href="README.en-US.md">English</div>
+  <a href="README.md">中文</a> |
+  <a href="README.US.md">English</a>
 </div>
 
 # ZeroTier for pfSense
